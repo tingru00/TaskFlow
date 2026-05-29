@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using TaskFlow.Application.Interfaces.Repositories;
+using TaskFlow.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,7 +8,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
+// Registrerar repositories i DI
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<ITaskItemRepository, TaskItemRepository>();
 builder.Services.AddControllers();
 
 // Swagger
