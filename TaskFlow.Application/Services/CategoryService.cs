@@ -32,6 +32,11 @@ public class CategoryService : ICategoryService
     // Skapar en ny kategori.
     public async Task CreateCategoryAsync(Category category)
     {
+        if (category is null)
+        {
+            throw new ArgumentNullException(nameof(category), "Kategorin kan inte vara null.");
+        }
+
         await _categoryRepository.AddAsync(category);
         await _categoryRepository.SaveChangesAsync();
     }

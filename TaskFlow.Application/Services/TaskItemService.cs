@@ -32,6 +32,11 @@ public class TaskItemService : ITaskItemService
     // Skapar en ny uppgift.
     public async Task CreateTaskAsync(TaskItem taskItem)
     {
+        if (taskItem is null)
+        {
+            throw new ArgumentNullException(nameof(taskItem), "Uppgiften kan inte vara null.");
+        }
+
         await _taskItemRepository.AddAsync(taskItem);
         await _taskItemRepository.SaveChangesAsync();
     }
