@@ -1,0 +1,48 @@
+﻿@page "/categories"
+@using TaskFlow.Domain.Entities
+@inject HttpClient Http
+
+<h3>Kategorier</h3>
+
+@if (errorMessage is not null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (categories is null)
+{
+    <p><em>Laddar kategorier från API...</em></p>
+}
+else if (!categories.Any())
+{
+    <p>Inga kategorier hittades i databasen.</p>
+}
+else
+{
+    <ul class="list-group w-50">
+        @foreach (var category in categories)
+        {
+            <li class="list-group-item">
+                <strong>ID:</strong> @category.Id - <strong>Namn:</strong> @category.Name
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private List<Category>? categories;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Gör ett anrop till API-controller
+            categories = await Http.GetFromJsonAsync<List<Category>>("api/Categories");
+        }
+        catch (Exception ex)
+        {
+            // Felmeddelande om API inte sätts igång
+            errorMessage = "Kunde inte hämta data. Kontrollera att API:et körs! Fel: " + ex.Message;
+        }
+    }
+}
