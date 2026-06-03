@@ -1,7 +1,209 @@
 ﻿@page "/"
+@using TaskFlow.Domain.Entities
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
 
-<PageTitle>Home</PageTitle>
+<div class="d-flex justify-content-center align-items-center" style="min-height: 75vh;">
+    <div class="card p-4 shadow-lg border-secondary text-white" 
+         style="width: 100%; max-width: 400px; border-radius: 30px; background-color: #1a1a1a; border: 1px solid #333;">
 
-<h1>Hello, world!</h1>
+        <button class="btn btn-outline-dark text-start d-flex align-items-center justify-content-between w-100 py-3 px-4 mb-3 border-2"
+                style="border-radius: 15px; background-color: #262626; border-color: #404040;"
+                @onclick="ToggleCategories">
+            <span class="fw-bold fs-5" style="color: #fef5c1;"> Mina projekt</span>
+            <span style="color: #fef5c1;">▼</span>
+        </button>
 
-Welcome to your new app.
+        @if (showCategories)
+        {
+            <div class="list-group shadow border-0 rounded overflow-hidden mt-2" style="background-color: #262626;">
+                @if (categories is null)
+                {
+                    <div class="p-3 text-muted text-center small">Hämtar projekt...</div>
+                }
+                else
+                {
+                    @foreach (var category in categories)
+                    {
+                        <div class="list-group-item list-group-item-action py-3 d-flex align-items-center justify-content-between border-0 border-bottom border-dark text-white bg-transparent">
+                            
+                            @if (editingCategoryId == category.Id)
+                            {
+                                
+                                <div class="d-flex gap-2 w-100 me-2">
+                                    <input type="text" class="form-control form-control-sm bg-secondary text-white border-0" 
+                                           @bind="editingCategoryName" />
+                                    <button class="btn btn-sm btn-success py-0 px-2" @onclick="() => SaveCategoryName(category)">Spara</button>
+                                    <button class="btn btn-sm btn-light py-0 px-2" @onclick="CancelEditing">X</button>
+                                </div>
+                            }
+                            else
+                            {
+                         
+                                <div class="d-flex align-items-center gap-3 flex-grow-1" style="cursor: pointer;" @onclick="() => GoToCategory(category.Id)">
+                                   <span style="display: inline-block; width: 8px; height: 8px; background-color: #ffffff; border-radius: 50%;"></span>
+                                    <span class="fw-semibold text-white">@category.Name</span>
+                                </div>
+
+                                <div class="d-flex gap-3 align-items-center">
+                                   
+                                    <button class="btn btn-sm p-0 border-0 bg-transparent text-muted hover-warning" 
+                                            @onclick="() => StartEditing(category)" title="Ändra namn">
+                                        ✏️
+                                    </button>
+
+   
+                                    <button class="btn btn-sm p-0 border-0 bg-transparent text-muted hover-danger" 
+                                            @onclick="() => DeleteCategory(category.Id, category.Name)" title="Ta bort">
+                                        ❌
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (showAddCategoryForm)
+                    {
+                        <div class="p-3 bg-dark border-top border-dark">
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control bg-secondary text-white border-0" 
+                                       placeholder="Projektnamn..." @bind="newCategoryName" />
+                                <button class="btn btn-primary btn-sm" @onclick="CreateCategory">Spara</button>
+                                <button class="btn btn-light btn-sm" @onclick="() => showAddCategoryForm = false">X</button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+
+                        <button class="list-group-item list-group-item-action py-3 text-start border-0 bg-transparent text-white small fw-bold"
+                                @onclick="() => showAddCategoryForm = true" style="cursor: pointer;">
+                            ➕ Lägg till nytt projekt
+                        </button>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (showDeleteConfirmation)
+{
+    <div class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" 
+         style="background-color: rgba(0,0,0,0.7); z-index: 9999;">
+        <div class="card p-4 text-center text-white border-secondary shadow-lg" 
+             style="width: 100%; max-width: 350px; border-radius: 20px; background-color: #1a1a1a; border: 1px solid #333;">
+            
+            <span style="font-size: 2.5rem; display: block; class="mb-2">⚠️</span>
+            <h5 class="fw-bold mb-3" style="color: #fef5c1;">Är du säker?</h5>
+            <p class="small text-light mb-4">Vill du verkligen radera hela projektet <strong>@categoryToNameDelete</strong> och allt dess innehåll?</p>
+            
+            <div class="d-flex gap-2">
+                <button class="btn btn-danger w-100 fw-bold py-2" style="border-radius: 10px;" @onclick="ConfirmDeleteCategory">Ja, radera</button>
+                <button class="btn btn-secondary w-100 py-2" style="border-radius: 10px; background-color: #333; border: none;" @onclick="CancelDeleteCategory">Avbryt</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .hover-danger:hover { color: #ff6b6b !important; }
+    .hover-warning:hover { color: #ffd166 !important; }
+</style>
+
+@code {
+    private List<Category>? categories;
+    private bool showCategories = false;
+    private bool showAddCategoryForm = false;
+    private string newCategoryName = string.Empty;
+
+    private int editingCategoryId = 0;
+    private string editingCategoryName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoriesAsync();
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        try { categories = await Http.GetFromJsonAsync<List<Category>>("api/Categories"); } catch (Exception) { }
+    }
+
+    private void ToggleCategories() => showCategories = !showCategories;
+    private void GoToCategory(int categoryId) => Navigation.NavigateTo($"/category/{categoryId}");
+
+    private async Task CreateCategory()
+    {
+        if (string.IsNullOrWhiteSpace(newCategoryName)) return;
+        var newCategory = new Category { Name = newCategoryName };
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/Categories", newCategory);
+            if (response.IsSuccessStatusCode)
+            {
+                newCategoryName = string.Empty;
+                showAddCategoryForm = false;
+                await LoadCategoriesAsync();
+            }
+        }
+        catch (Exception) { }
+    }
+
+    private void StartEditing(Category category)
+    {
+        editingCategoryId = category.Id;
+        editingCategoryName = category.Name;
+    }
+
+    private void CancelEditing() => editingCategoryId = 0;
+
+    private async Task SaveCategoryName(Category category)
+    {
+        if (string.IsNullOrWhiteSpace(editingCategoryName)) return;
+        category.Name = editingCategoryName;
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/Categories/{category.Id}", category);
+            if (response.IsSuccessStatusCode)
+            {
+                editingCategoryId = 0;
+                await LoadCategoriesAsync();
+            }
+        }
+        catch (Exception) { }
+    }
+
+  // DELETE variabler för popupen
+    private bool showDeleteConfirmation = false;
+    private int categoryIdToDelete;
+    private string categoryToNameDelete = string.Empty;
+
+   // DELETE
+    private void DeleteCategory(int id, string name)
+    {
+        categoryIdToDelete = id;
+        categoryToNameDelete = name;
+        showDeleteConfirmation = true;
+    }
+
+    private void CancelDeleteCategory()
+    {
+        showDeleteConfirmation = false;
+    }
+
+    private async Task ConfirmDeleteCategory()
+    {
+        showDeleteConfirmation = false;
+        try
+        {
+            var response = await Http.DeleteAsync($"api/Categories/{categoryIdToDelete}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadCategoriesAsync();
+            }
+        }
+        catch (Exception) { }
+    }
+}
