@@ -2,32 +2,27 @@ name: Deploy Blazor to GitHub Pages
 
 on:
   push:
-    branches: [ feature/frontend, main ] # Den körs när man pushar till dessa brancher
+    branches: [ dev, main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # 1. Hämtar kod till GitHubs robot
       - uses: actions/checkout@v4
 
-      # 2. Installerar .NET SDK
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      # 3. Publicerar Blazor-projektet till en fristående mapp
       - name: Publish Blazor Frontend
         run: dotnet publish TaskFlow.Blazor/TaskFlow.Blazor.csproj -c Release -o release
 
-      # 4. Fixar ett känt GitHub Pages-problem med Blazor-routing
       - name: Copy index.html to 404.html
         run: cp release/wwwroot/index.html release/wwwroot/404.html
 
-      # 5. Laddar upp den färdiga frontend-appen live till GitHub Pages!
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: release/wwwroot
-          branch: gh-pages # Detta skapar en ny ren branch på GitHub där hemsidan ligger
+          branch: gh-pages
