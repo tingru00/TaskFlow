@@ -18,29 +18,34 @@ jobs:
       - name: Publish Blazor Frontend
         run: dotnet publish TaskFlow.Blazor/TaskFlow.Blazor.csproj -c Release -o release --nologo
 
-      - name: Ensure correct wwwroot path
+      - name: Locate and organize web files
         run: |
-          if [ -d "release/TaskFlow.Blazor/wwwroot" ]; then
-            cp -r release/TaskFlow.Blazor/wwwroot/. release/wwwroot/ 2>/dev/null || true
-          fi
-          if [ -d "release/wwwroot/_framework" ] && [ ! -f "release/wwwroot/index.html" ]; then
-            cp -r release/wwwroot/_framework/. release/wwwroot/ 2>/dev/null || true
+          # Hitta var index.html faktiskt hamnade och flytta filerna till en ren utmatningsmapp
+          mkdir -p dist
+          WEBROOT_PATH=$(find release -name "index.html" | head -n 1 | sed 's/\/index.html//')
+          
+          if [ -n "$WEBROOT_PATH" ]; then
+            echo "Hittade webbfiler i: $WEBROOT_PATH"
+            cp -r $WEBROOT_PATH/. dist/
+          else
+            echo "ERRA: Kunde inte hitta index.html i release-mappen!"
+            exit 1
           fi
 
       - name: Fix base-href for GitHub Pages
         run: |
-          if [ -f "release/wwwroot/index.html" ]; then
-            sed -i 's/<base href="\/" \/>/<base href="\/TaskFlow\/" \/>/g' release/wwwroot/index.html
+          if [ -f "dist/index.html" ]; then
+            sed -i 's/<base href="\/" \/>/<base href="\/TaskFlow\/" \/>/g' dist/index.html
           fi
 
       - name: Copy index.html to 404.html
         run: |
-          if [ -f "release/wwwroot/index.html" ]; then
-            cp release/wwwroot/index.html release/wwwroot/404.html
+          if [ -f "dist/index.html" ]; then
+            cp dist/index.html dist/404.html
           fi
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: release/wwwroot
+          folder: dist
           branch: gh-pages
