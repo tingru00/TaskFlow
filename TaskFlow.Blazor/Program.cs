@@ -22,7 +22,7 @@ if (!app.Environment.IsDevelopment())
     
     app.UseHsts();
 }
-app.UseStatusCodePagesWithReExecute("/not-found";
+app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
