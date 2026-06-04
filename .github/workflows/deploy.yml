@@ -19,7 +19,7 @@ jobs:
         run: dotnet publish TaskFlow.Blazor/TaskFlow.Blazor.csproj -c Release -o release
 
       - name: Copy index.html to 404.html
-        run: cp release/wwwroot/index.html release/wwwroot/404.html
+        run: cp release/wwwroot/index.html release/wwwroot/404.html || cp release/TaskFlow.Blazor/wwwroot/index.html release/TaskFlow.Blazor/wwwroot/404.html || true
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
