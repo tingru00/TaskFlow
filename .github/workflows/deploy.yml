@@ -18,11 +18,26 @@ jobs:
       - name: Publish Blazor Frontend
         run: dotnet publish TaskFlow.Blazor/TaskFlow.Blazor.csproj -c Release -o release --nologo
 
+      - name: Ensure correct wwwroot path
+        run: |
+          if [ -d "release/TaskFlow.Blazor/wwwroot" ]; then
+            cp -r release/TaskFlow.Blazor/wwwroot/. release/wwwroot/ 2>/dev/null || true
+          fi
+          if [ -d "release/wwwroot/_framework" ] && [ ! -f "release/wwwroot/index.html" ]; then
+            cp -r release/wwwroot/_framework/. release/wwwroot/ 2>/dev/null || true
+          fi
+
       - name: Fix base-href for GitHub Pages
-        run: sed -i 's/<base href="\/" \/>/<base href="\/TaskFlow\/" \/>/g' release/wwwroot/index.html
+        run: |
+          if [ -f "release/wwwroot/index.html" ]; then
+            sed -i 's/<base href="\/" \/>/<base href="\/TaskFlow\/" \/>/g' release/wwwroot/index.html
+          fi
 
       - name: Copy index.html to 404.html
-        run: cp release/wwwroot/index.html release/wwwroot/404.html
+        run: |
+          if [ -f "release/wwwroot/index.html" ]; then
+            cp release/wwwroot/index.html release/wwwroot/404.html
+          fi
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
