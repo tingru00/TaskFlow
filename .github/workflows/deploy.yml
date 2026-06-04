@@ -16,10 +16,13 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Publish Blazor Frontend
-        run: dotnet publish TaskFlow.Blazor/TaskFlow.Blazor.csproj -c Release -o release
+        run: dotnet publish TaskFlow.Blazor/TaskFlow.Blazor.csproj -c Release -o release --nologo
+
+      - name: Fix base-href for GitHub Pages
+        run: sed -i 's/<base href="\/" \/>/<base href="\/TaskFlow\/" \/>/g' release/wwwroot/index.html
 
       - name: Copy index.html to 404.html
-        run: cp release/wwwroot/index.html release/wwwroot/404.html || cp release/TaskFlow.Blazor/wwwroot/index.html release/TaskFlow.Blazor/wwwroot/404.html || true
+        run: cp release/wwwroot/index.html release/wwwroot/404.html
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
