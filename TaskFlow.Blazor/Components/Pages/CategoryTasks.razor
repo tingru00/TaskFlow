@@ -1,0 +1,208 @@
+﻿@page "/category/{CategoryId:int}"
+@using TaskFlow.Domain.Entities
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<div class="d-flex justify-content-center gap-3 my-3">
+    <button class="btn btn-sm btn-outline-secondary px-3" @onclick='() => Navigation.NavigateTo("/")'>Hem</button>
+    <button class="btn btn-sm btn-dark px-3" @onclick='() => Navigation.NavigateTo("/")'>Kategorier</button>
+</div>
+
+<div class="d-flex justify-content-center align-items-center mb-5">
+    <div class="card shadow-lg border-dark"
+         style="width: 100%; max-width: 410px; height: 700px; border-radius: 40px; border: 12px solid #212529; display: flex; flex-direction: column; background-color: #f8f9fa;">
+        
+        <div class="text-white text-center p-3 fw-bold shadow-sm" style="border-top-left-radius: 20px; border-top-right-radius: 20px; background-color: #000000;">
+            <i class="bi bi-phone me-2"></i> @(currentCategory?.Name ?? "Kategori")
+        </div>
+
+        <div class="p-3 flex-grow-1" style="overflow-y: auto;">
+            
+            @if (errorMessage is not null)
+            {
+                <div class="alert alert-danger text-center small">@errorMessage</div>
+            }
+            else if (filteredTasks is null)
+            {
+                <div class="text-center text-muted mt-5">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                </div>
+            }
+            else if (!filteredTasks.Any() && !showAddForm)
+            {
+                <div class="text-center my-5 p-4 bg-white rounded shadow-sm border border-dashed">
+                    <i class="bi bi-emoji-smile text-muted display-6"></i>
+                    <p class="fw-semibold text-secondary mt-2 mb-0">Inget att göra här!</p>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var task in filteredTasks)
+                    {
+                        <div class="card p-3 shadow-sm border-0 position-relative bg-white" style="border-radius: 15px;">
+                            <div class="d-flex align-items-center gap-3">
+                                <input class="form-check-input fs-5" type="checkbox" checked="@task.IsDone" @onchange="() => ToggleTask(task)" />
+                                <div class="pe-4">
+                                    <h6 class="m-0 fw-bold @(task.IsDone ? "text-decoration-line-through text-muted" : "text-dark")">@task.Title</h6>
+                                    @if (!string.IsNullOrEmpty(task.Description))
+                                    {
+                                        <small class="text-muted d-block mt-1">@task.Description</small>
+                                    }
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-link text-danger position-absolute top-0 end-0 m-1 p-1 text-decoration-none"
+                                    @onclick="() => DeleteTask(task.Id)" title="Ta bort">
+                                <i class="bi bi-x-circle-fill fs-5"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (showAddForm)
+            {
+                <div class="card p-3 shadow-sm border-dark border-2 mt-4" style="border-radius: 15px;">
+                    <h6 class="fw-bold text-primary mb-3">Ny uppgift</h6>
+                    <div class="mb-2">
+                        <input type="text" class="form-control form-control-sm" placeholder="Titel (t.ex. Handla mat)" @bind="newTaskTitle" />
+                    </div>
+                    <div class="mb-3">
+                        <input type="text" class="form-control form-control-sm" placeholder="Beskrivning (valfritt)" @bind="newTaskDescription" />
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-dark w-100 fw-bold" @onclick="CreateTask">Spara</button>
+                        <button class="btn btn-sm btn-light w-100" @onclick="() => showAddForm = false">Avbryt</button>
+                    </div>
+                </div>
+            }
+
+            @if (!showAddForm)
+            {
+                <div class="text-center mt-5 mb-3">
+                    <button class="btn w-100 py-2 shadow-sm border-2 fw-bold custom-hover-btn"
+                            style="border-radius: 12px; color: #ffffff; background-color: #000000; border-color: #333333;"
+                            @onclick="() => showAddForm = true">
+                        ➕ Lägg till Task
+                    </button>
+                </div>
+
+                <div class="text-center mt-4 mb-2">
+                    <button class="btn rounded-circle p-2 custom-back-btn"
+                            style="width: 50px; height: 50px; background-color: #000000; color: #ffffff; border: 2px solid #333333; font-size: 1.3rem; line-height: 1;"
+                            @onclick='() => Navigation.NavigateTo("/")'
+                            title="Tillbaka till projekt">
+                        ↩️
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int CategoryId { get; set; }
+    
+    private Category? currentCategory;
+    private List<TaskItem>? filteredTasks;
+    private string? errorMessage;
+
+    // Variabler för formuläret
+    private bool showAddForm = false;
+    private string newTaskTitle = string.Empty;
+    private string newTaskDescription = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            errorMessage = null;
+            var categories = await Http.GetFromJsonAsync<List<Category>>("api/Categories");
+            currentCategory = categories?.FirstOrDefault(c => c.Id == CategoryId);
+
+            var allTasks = await Http.GetFromJsonAsync<List<TaskItem>>("api/TaskItems");
+            filteredTasks = allTasks?.Where(t => t.CategoryId == CategoryId).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Kunde inte ladda data: " + ex.Message;
+        }
+    }
+
+    // CREATE CRUD
+    private async Task CreateTask()
+    {
+        if (string.IsNullOrWhiteSpace(newTaskTitle)) return;
+
+        var newTask = new TaskItem
+        {
+            Title = newTaskTitle,
+            Description = newTaskDescription,
+            IsDone = false,
+            CategoryId = this.CategoryId // Kopplar automatiskt till den kategori man befinner sig i
+        };
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/TaskItems", newTask);
+            if (response.IsSuccessStatusCode)
+            {
+                // Nollställ formuläret och ladda om listan direkt
+                newTaskTitle = string.Empty;
+                newTaskDescription = string.Empty;
+                showAddForm = false;
+                await LoadDataAsync();
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Kunde inte spara uppgiften.";
+        }
+    }
+
+    // DELETE CRUD
+    private async Task DeleteTask(int taskId)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/TaskItems/{taskId}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadDataAsync(); // Uppdaterar listan direkt på skärmen
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Kunde inte ta bort uppgiften.";
+        }
+    }
+
+    // UPDATE CRUD
+    private async Task ToggleTask(TaskItem task)
+    {
+        task.IsDone = !task.IsDone;
+        try
+        {
+            await Http.PutAsJsonAsync($"api/TaskItems/{task.Id}", task);
+        }
+        catch (Exception) { }
+    }
+}
+
+<style>
+    .custom-hover-btn:hover {
+        background-color: #ffffff !important;
+        border-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    .custom-back-btn:hover {
+        background-color: #ffffff !important;
+        border-color: #ffffff !important;
+        color: #000000 !important;
+    }
+</style>
